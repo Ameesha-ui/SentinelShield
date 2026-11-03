@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentinelShield | Security Operations Center (SOC)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-card: #111827;
+            --bg-card-hover: #1f2937;
+            --border: #2d3748;
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --accent-purple: #8b5cf6;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            font-size: 28px;
+            color: var(--accent-cyan);
+            filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.4));
+        }
+
+        .brand-title {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-cyan);
+        }
+
+        .btn-danger {
+            color: var(--accent-rose);
+            border-color: rgba(244, 63, 94, 0.4);
+        }
+
+        .btn-danger:hover {
+            background: rgba(244, 63, 94, 0.15);
+            border-color: var(--accent-rose);
+        }
+
+        .badge-status {
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-active {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-emerald);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .grid-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 3px;
+            width: 100%;
+        }
+
+        .stat-card.cyan::after { background: var(--accent-cyan); }
+        .stat-card.emerald::after { background: var(--accent-emerald); }
+        .stat-card.rose::after { background: var(--accent-rose); }
+        .stat-card.purple::after { background: var(--accent-purple); }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .grid-main {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .grid-main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 12px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(45, 55, 72, 0.4);
+            vertical-align: middle;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .badge-cat {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #1e293b;
+            color: #cbd5e1;
+        }
+
+        .badge-sev-CRITICAL {
+            background: rgba(244, 63, 94, 0.2);
+            color: #fda4af;
+            border: 1px solid rgba(244, 63, 94, 0.4);
+        }
+        .badge-sev-HIGH {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fcd34d;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
+        .badge-sev-MEDIUM {
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+            border: 1px solid rgba(59, 130, 246, 0.4);
+        }
+
+        .code-payload {
+            font-family: monospace;
+            background: #0f172a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #e2e8f0;
+            max-width: 260px;
+            display: inline-block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .input-text, .input-select {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid var(--border);
+            color: #f3f4f6;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        .input-text:focus, .input-select:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .distribution-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+
+        .dist-name {
+            width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .dist-track {
+            flex: 1;
+            background: #1e293b;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 0 12px;
+        }
+
+        .dist-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .dist-count {
+            width: 35px;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .empty-placeholder {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="brand">
+            <i class="fa-solid fa-shield-halved brand-icon"></i>
+            <div>
+                <div class="brand-title">SentinelShield SOC</div>
+                <div class="brand-subtitle">Intrusion Detection & Web Application Firewall Console</div>
+            </div>
+        </div>
+        <div class="controls">
+            <span class="badge-status badge-active" id="wafStatusBadge">WAF ACTIVE (BLOCKING)</span>
+            <button class="btn" onclick="toggleWafMode()"><i class="fa-solid fa-power-off"></i> Toggle Mode</button>
+            <button class="btn btn-danger" onclick="resetLogs()"><i class="fa-solid fa-trash-can"></i> Clear Logs</button>
+            <button class="btn" onclick="fetchData()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+    </div>
+
+    <!-- Statistics KPIs -->
+    <div class="grid-stats">
+        <div class="stat-card cyan">
+            <div class="stat-label">Total Inspected</div>
+            <div class="stat-value" id="kpiTotal">0</div>
+        </div>
+        <div class="stat-card emerald">
+            <div class="stat-label">Allowed / Benign</div>
+            <div class="stat-value" id="kpiAllowed">0</div>
+        </div>
+        <div class="stat-card rose">
+            <div class="stat-label">Threats Blocked</div>
+            <div class="stat-value" id="kpiBlocked">0</div>
+        </div>
+        <div class="stat-card purple">
+            <div class="stat-label">Block Rate</div>
+            <div class="stat-value" id="kpiBlockRate">0%</div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="grid-main">
+        <!-- Live Security Alert Table -->
+        <div class="card">
+            <div class="card-title">
+                <span><i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-rose); margin-right: 8px;"></i> Security Incident Stream</span>
+                <span style="font-size: 12px; color: var(--text-muted);">Real-time inspection telemetry</span>
+            </div>
+            <div style="overflow-x: auto; max-height: 480px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>IP Address</th>
+                            <th>Category</th>
+                            <th>Rule ID</th>
+                            <th>Severity</th>
+                            <th>Trigger Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertsTableBody">
+                        <tr><td colspan="6" class="empty-placeholder">No security alerts recorded yet. Run tests or simulation to view events.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sidebar: Attack Categories & Live Tester -->
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+            <!-- Category Distribution -->
+            <div class="card">
+                <div class="card-title">
+                    <span><i class="fa-solid fa-chart-pie" style="color: var(--accent-cyan); margin-right: 8px;"></i> Threat Distribution</span>
+                </div>
+                <div id="categoryDistributionContainer">
+                    <div class="empty-placeholder">No threat data yet.</div>
+                </div>
+            </div>
+
+            <!-- Interactive WAF Sandbox Inspector -->
+            <div class="card">
+                <div class="card-title">
+                    <span><i class="fa-solid fa-flask" style="color: var(--accent-purple); margin-right: 8px;"></i> Request Sandbox Inspector</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Test custom payloads directly against SentinelShield rule engine.</p>
+                
+                <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Component to Test:</label>
+                <select id="sandboxComponent" class="input-select">
+                    <option value="query">Query Parameter</option>
+                    <option value="body">Request Body</option>
+                    <option value="path">Request Path</option>
+                    <option value="header">Header (User-Agent)</option>
+                </select>
+
+                <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Payload Value:</label>
+                <input type="text" id="sandboxPayload" class="input-text" placeholder="e.g. ' OR 1=1 -- or <script>alert(1)</script>" value="' OR '1'='1">
+
+                <button class="btn" style="width: 100%; justify-content: center;" onclick="inspectSandboxPayload()">
+                    <i class="fa-solid fa-bolt"></i> Evaluate Payload
+                </button>
+
+                <div id="sandboxResult" style="margin-top: 12px; font-size: 12px; display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active IP & Behavior Monitoring -->
+    <div class="card">
+        <div class="card-title">
+            <span><i class="fa-solid fa-network-wired" style="color: var(--accent-emerald); margin-right: 8px;"></i> IP Reputation & Traffic Behavior Tracking</span>
+            <span style="font-size: 12px; color: var(--text-muted);">Sliding Window Monitoring</span>
+        </div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Client IP</th>
+                        <th>Requests in Active Window</th>
+                        <th>Total Lifetime Requests</th>
+                        <th>Total Blocks</th>
+                        <th>Status</th>
+                        <th>Ban Duration Remaining</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="ipTableBody">
+                    <tr><td colspan="7" class="empty-placeholder">No client traffic tracked yet.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function fetchData() {
+            try {
+                const res = await fetch('/api/waf/stats');
+                const data = await res.json();
+
+                // Update KPIs
+                document.getElementById('kpiTotal').innerText = data.stats.total_inspections;
+                document.getElementById('kpiAllowed').innerText = data.stats.total_allowed;
+                document.getElementById('kpiBlocked').innerText = data.stats.total_blocked;
+                document.getElementById('kpiBlockRate').innerText = data.stats.block_rate_percentage + '%';
+
+                // Update Status Badge
+                const badge = document.getElementById('wafStatusBadge');
+                if (!data.engine_status.enabled) {
+                    badge.innerText = 'WAF DISABLED';
+                    badge.className = 'badge-status badge-sev-CRITICAL';
+                } else if (data.engine_status.mode === 'MONITORING') {
+                    badge.innerText = 'WAF ACTIVE (MONITORING / IDS)';
+                    badge.className = 'badge-status badge-sev-HIGH';
+                } else {
+                    badge.innerText = 'WAF ACTIVE (BLOCKING / IPS)';
+                    badge.className = 'badge-status badge-active';
+                }
+
+                // Render Alerts Table
+                const tbody = document.getElementById('alertsTableBody');
+                if (data.recent_alerts && data.recent_alerts.length > 0) {
+                    tbody.innerHTML = data.recent_alerts.map(a => {
+                        const time = a.timestamp ? a.timestamp.split('T')[1].replace('Z', '') : '';
+                        const sevClass = `badge-sev-${a.severity}`;
+                        return `
+                            <tr>
+                                <td>${time}</td>
+                                <td><code>${a.client_ip}</code></td>
+                                <td><span class="badge-cat">${a.category}</span></td>
+                                <td><code>${a.rule_id}</code></td>
+                                <td><span class="badge-status ${sevClass}">${a.severity}</span></td>
+                                <td><span class="code-payload" title="${a.trigger_value}">${escapeHtml(a.trigger_value)}</span></td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" class="empty-placeholder">No security alerts recorded yet.</td></tr>';
+                }
+
+                // Render Categories
+                const catContainer = document.getElementById('categoryDistributionContainer');
+                const categories = data.stats.categories_breakdown;
+                if (categories && categories.length > 0) {
+                    const totalBlocks = data.stats.total_blocked || 1;
+                    catContainer.innerHTML = categories.map(c => {
+                        const pct = Math.round((c.count / totalBlocks) * 100);
+                        return `
+                            <div class="distribution-bar">
+                                <span class="dist-name" title="${c.category}">${c.category}</span>
+                                <div class="dist-track">
+                                    <div class="dist-fill" style="width: ${pct}%;"></div>
+                                </div>
+                                <span class="dist-count">${c.count}</span>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    catContainer.innerHTML = '<div class="empty-placeholder">No threat data yet.</div>';
+                }
+
+                // Render IP Monitoring Table
+                const ipTbody = document.getElementById('ipTableBody');
+                if (data.tracked_ips && data.tracked_ips.length > 0) {
+                    ipTbody.innerHTML = data.tracked_ips.map(ipInfo => {
+                        const isBanned = ipInfo.is_banned;
+                        const statusBadge = isBanned ?
+                            '<span class="badge-status badge-sev-CRITICAL">BANNED</span>' :
+                            '<span class="badge-status badge-active">HEALTHY</span>';
+                        const unbanBtn = isBanned ?
+                            `<button class="btn" style="padding: 2px 8px; font-size: 11px;" onclick="unbanIp('${ipInfo.ip}')">Unban</button>` :
+                            '-';
+
+                        return `
+                            <tr>
+                                <td><code>${ipInfo.ip}</code></td>
+                                <td>${ipInfo.active_requests_in_window}</td>
+                                <td>${ipInfo.total_requests}</td>
+                                <td>${ipInfo.total_blocks}</td>
+                                <td>${statusBadge}</td>
+                                <td>${isBanned ? ipInfo.ban_expires_in + 's' : '-'}</td>
+                                <td>${unbanBtn}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    ipTbody.innerHTML = '<tr><td colspan="7" class="empty-placeholder">No client traffic tracked yet.</td></tr>';
+                }
+
+            } catch (err) {
+                console.error("Failed to load telemetry:", err);
+            }
+        }
+
+        async function toggleWafMode() {
+            await fetch('/api/waf/toggle', { method: 'POST' });
+            fetchData();
+        }
+
+        async function resetLogs() {
+            if (confirm("Reset all security telemetry and statistics?")) {
+                await fetch('/api/waf/reset', { method: 'POST' });
+                fetchData();
+            }
+        }
+
+        async function unbanIp(ip) {
+            await fetch('/api/waf/unban', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip })
+            });
+            fetchData();
+        }
+
+        async function inspectSandboxPayload() {
+            const component = document.getElementById('sandboxComponent').value;
+            const payload = document.getElementById('sandboxPayload').value;
+            const resDiv = document.getElementById('sandboxResult');
+
+            resDiv.style.display = 'block';
+            resDiv.innerHTML = '<div style="color: var(--accent-cyan);">Evaluating against rules...</div>';
+
+            try {
+                const res = await fetch('/api/waf/test-payload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ component, payload })
+                });
+                const data = await res.json();
+
+                if (data.allowed) {
+                    resDiv.innerHTML = `
+                        <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid var(--accent-emerald); padding: 10px; border-radius: 6px;">
+                            <strong style="color: var(--accent-emerald);"><i class="fa-solid fa-circle-check"></i> PASS: Clean Payload</strong>
+                            <p style="margin-top: 4px; color: var(--text-muted);">${data.message}</p>
+                        </div>
+                    `;
+                } else {
+                    resDiv.innerHTML = `
+                        <div style="background: rgba(244, 63, 94, 0.15); border: 1px solid var(--accent-rose); padding: 10px; border-radius: 6px;">
+                            <strong style="color: var(--accent-rose);"><i class="fa-solid fa-shield-virus"></i> BLOCKED: ${data.alert.category}</strong>
+                            <p style="margin-top: 4px;"><strong>Rule:</strong> ${data.alert.rule_name} (<code>${data.alert.rule_id}</code>)</p>
+                            <p style="color: var(--text-muted); font-size: 11px; margin-top: 2px;">${data.alert.extra_details.description || ''}</p>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                resDiv.innerHTML = `<div style="color: var(--accent-rose);">Error communicating with WAF engine.</div>`;
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // Auto-refresh every 3 seconds
+        setInterval(fetchData, 3000);
+        window.onload = fetchData;
+    </script>
+</body>
+</html>
+

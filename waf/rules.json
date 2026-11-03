@@ -1,0 +1,120 @@
+[
+  {
+    "id": "SEC-SQLI-001",
+    "name": "SQL Injection: Boolean Tautology / OR Clause",
+    "category": "SQL Injection (SQLi)",
+    "severity": "CRITICAL",
+    "description": "Detects classic boolean tautology constructs such as OR 1=1 or '1'='1 used to bypass authentication or extract data.",
+    "pattern": "(?i)(\\b(or|and)\\b\\s+['\"\\d]+\\s*=\\s*['\"\\d]+)|(\\b(or|and)\\b\\s+['\"][^'\"]+['\"]\\s*=\\s*['\"][^'\"]+['\"])",
+    "target_components": ["query", "body", "path"]
+  },
+  {
+    "id": "SEC-SQLI-002",
+    "name": "SQL Injection: UNION Query Operator",
+    "category": "SQL Injection (SQLi)",
+    "severity": "CRITICAL",
+    "description": "Detects UNION SELECT statements commonly employed to exfiltrate database records across different tables.",
+    "pattern": "(?i)\\bunion\\b(?:\\s+all)?\\s+\\bselect\\b",
+    "target_components": ["query", "body"]
+  },
+  {
+    "id": "SEC-SQLI-003",
+    "name": "SQL Injection: Administrative/Destructive Commands & Time Delay",
+    "category": "SQL Injection (SQLi)",
+    "severity": "CRITICAL",
+    "description": "Detects database modification or time-delay functions (DROP, TRUNCATE, SLEEP, WAITFOR).",
+    "pattern": "(?i)\\b(drop\\s+table|truncate\\s+table|insert\\s+into|waitfor\\s+delay|sleep\\s*\\(\\s*\\d+\\s*\\)|benchmark\\s*\\()",
+    "target_components": ["query", "body"]
+  },
+  {
+    "id": "SEC-SQLI-004",
+    "name": "SQL Injection: Inline Comments & Truncation",
+    "category": "SQL Injection (SQLi)",
+    "severity": "HIGH",
+    "description": "Detects SQL comment markers (-- or /* */ or #) commonly used to terminate remaining query syntax.",
+    "pattern": "(?:--|/\\*.*?\\*/|#\\s|;\\s*--)",
+    "target_components": ["query", "body"]
+  },
+  {
+    "id": "SEC-XSS-001",
+    "name": "XSS: Explicit Script Tag Injection",
+    "category": "Cross-Site Scripting (XSS)",
+    "severity": "CRITICAL",
+    "description": "Detects opening and closing script tags or malformed script tags intended to inject arbitrary JavaScript.",
+    "pattern": "(?i)<\\s*script[^>]*>.*?(<\\s*/\\s*script\\s*>)?|<\\s*script[^>]*>",
+    "target_components": ["query", "body"]
+  },
+  {
+    "id": "SEC-XSS-002",
+    "name": "XSS: Inline Event Handlers",
+    "category": "Cross-Site Scripting (XSS)",
+    "severity": "HIGH",
+    "description": "Detects HTML event attributes such as onerror, onload, onclick, onmouseover combined with executable code.",
+    "pattern": "(?i)\\b(onload|onerror|onclick|onmouseover|onfocus|onblur|onsubmit)\\s*=\\s*['\"]?[^'\">]+",
+    "target_components": ["query", "body"]
+  },
+  {
+    "id": "SEC-XSS-003",
+    "name": "XSS: JavaScript Pseudoprotocol / DOM Execution",
+    "category": "Cross-Site Scripting (XSS)",
+    "severity": "HIGH",
+    "description": "Detects javascript: URI schemes and document.cookie / alert execution patterns.",
+    "pattern": "(?i)(javascript\\s*:\\s*|document\\.cookie|window\\.location|eval\\s*\\(|alert\\s*\\()",
+    "target_components": ["query", "body"]
+  },
+  {
+    "id": "SEC-LFI-001",
+    "name": "LFI: Directory Traversal Sequences",
+    "category": "Local File Inclusion / Path Traversal",
+    "severity": "HIGH",
+    "description": "Detects dot-dot-slash traversal sequences in standard or encoded formats attempting to escape web roots.",
+    "pattern": "(?:\\.\\.[\\/\\\\]|%2e%2e[\\/\\\\]|%2e%2e%2f|%2e%2e%5c|\\.\\.%2f|\\.\\.%5c)",
+    "target_components": ["query", "path", "body"]
+  },
+  {
+    "id": "SEC-LFI-002",
+    "name": "LFI: Critical OS File Access",
+    "category": "Local File Inclusion / Path Traversal",
+    "severity": "CRITICAL",
+    "description": "Detects direct attempts to target sensitive system files such as /etc/passwd, /etc/shadow, win.ini, or boot.ini.",
+    "pattern": "(?i)(?:/etc/(?:passwd|shadow|hosts|issue)|(?:windows|winnt)[/\\\\](?:system32|win\\.ini)|boot\\.ini|/proc/self/environ)",
+    "target_components": ["query", "path", "body"]
+  },
+  {
+    "id": "SEC-RCE-001",
+    "name": "Command Injection: Shell Metacharacters & Chaining",
+    "category": "Remote Command Injection (RCE)",
+    "severity": "CRITICAL",
+    "description": "Detects shell separators (semicolon, pipe, double ampersand) followed by Unix or Windows shell commands.",
+    "pattern": "(?:[;&|`$]\\s*(?:cat\\b|ls\\b|whoami\\b|id\\b|pwd\\b|curl\\b|wget\\b|dir\\b|type\\b|ping\\b|net\\s+user|powershell|cmd\\.exe|/bin/sh|/bin/bash))",
+    "target_components": ["query", "body"]
+  },
+  {
+    "id": "SEC-RCE-002",
+    "name": "Command Injection: Command Substitution Syntax",
+    "category": "Remote Command Injection (RCE)",
+    "severity": "CRITICAL",
+    "description": "Detects shell command substitution syntax like $(command) or backtick execution `command`.",
+    "pattern": "(?:\\$\\([a-zA-Z0-9_\\-\\s]+\\)|`[a-zA-Z0-9_\\-\\s]+`)",
+    "target_components": ["query", "body"]
+  },
+  {
+    "id": "SEC-PROBE-001",
+    "name": "Reconnaissance: Automated Security Scanner User-Agent",
+    "category": "Automated Scanner / Reconnaissance",
+    "severity": "MEDIUM",
+    "description": "Detects automated security scanning tools (sqlmap, nikto, dirbuster, nmap, nuclei, acunetix) based on User-Agent header.",
+    "pattern": "(?i)(sqlmap|nikto|dirbuster|gobuster|wpscan|acunetix|nessus|masscan|zgrab|nuclei|openvas)",
+    "target_components": ["header"]
+  },
+  {
+    "id": "SEC-PROBE-002",
+    "name": "Reconnaissance: Sensitive Endpoint Probing",
+    "category": "Automated Scanner / Reconnaissance",
+    "severity": "MEDIUM",
+    "description": "Detects scanning for sensitive administrative or configuration artifacts like .git, .env, or phpmyadmin.",
+    "pattern": "(?i)(/\\.git(?:/|\\b)|/\\.env(?:\\b|\\.)|/phpmyadmin|/wp-config\\.php|/admin/config\\.json|/\\.aws/credentials)",
+    "target_components": ["path"]
+  }
+]
+
