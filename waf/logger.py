@@ -43,10 +43,10 @@ class SecurityLogger:
         self.audit_logger.setLevel(logging.INFO)
         # Avoid duplicate handlers if re-instantiated
         if not self.audit_logger.handlers:
-        try:
-            file_handler = logging.FileHandler(self.audit_log_path, encoding="utf-8")
-        except OSError:
-            file_handler = logging.StreamHandler()
+            try:
+                file_handler = logging.FileHandler(self.audit_log_path, encoding="utf-8")
+            except OSError:
+                file_handler = logging.StreamHandler()
 
             formatter = logging.Formatter(
                 "[%(asctime)s] [%(levelname)s] [SentinelShield] %(message)s",
