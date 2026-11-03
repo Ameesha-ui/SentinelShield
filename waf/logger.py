@@ -16,8 +16,17 @@ from .models import SecurityAlert
 
 class SecurityLogger:
     def __init__(self, log_dir: str):
-        self.log_dir = log_dir
-        os.makedirs(log_dir, exist_ok=True)
+       try:
+    os.makedirs(log_dir, exist_ok=True)
+    test_file = os.path.join(log_dir, ".write_test")
+    with open(test_file, "w", encoding="utf-8"):
+        pass
+    os.remove(test_file)
+except OSError:
+    log_dir = os.path.join("/tmp", "sentinelshield_logs")
+    os.makedirs(log_dir, exist_ok=True)
+
+self.log_dir = log_dir
 
         self.json_log_path = os.path.join(log_dir, "sentinel_alerts.jsonl")
         self.audit_log_path = os.path.join(log_dir, "sentinel_security.log")
@@ -34,7 +43,10 @@ class SecurityLogger:
         self.audit_logger.setLevel(logging.INFO)
         # Avoid duplicate handlers if re-instantiated
         if not self.audit_logger.handlers:
-            file_handler = logging.FileHandler(self.audit_log_path, encoding="utf-8")
+            try:
+    file_handler = logging.FileHandler(self.audit_log_path, encoding="utf-8")
+except OSError:
+    file_handler = logging.StreamHandler()
             formatter = logging.Formatter(
                 "[%(asctime)s] [%(levelname)s] [SentinelShield] %(message)s",
                 datefmt="%Y-%m-%d %H:%M:%S"
