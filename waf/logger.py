@@ -1,7 +1,6 @@
 """
 SentinelShield - Security Event Logging System
-Handles dual-format logging (Human-readable audit log & JSON Lines),
-event persistence, aggregation, and querying for the SOC dashboard.
+Stores inspection statistics and security alerts in Supabase.
 """
 
 import os
@@ -9,148 +8,256 @@ import json
 import logging
 from typing import List, Dict, Any, Optional
 from collections import Counter
-from datetime import datetime
 
+from supabase import create_client
 from .models import SecurityAlert
 
 
 class SecurityLogger:
+
     def __init__(self, log_dir: str):
+        self.log_dir = log_dir
+
         try:
             os.makedirs(log_dir, exist_ok=True)
-            test_file = os.path.join(log_dir, ".write_test")
-            with open(test_file, "w", encoding="utf-8"):
-                pass
-            os.remove(test_file)
         except OSError:
-            log_dir = os.path.join("/tmp", "sentinelshield_logs")
-            os.makedirs(log_dir, exist_ok=True)
+            self.log_dir = "/tmp/sentinelshield_logs"
+            os.makedirs(self.log_dir, exist_ok=True)
 
-        self.log_dir = log_dir
-        self.json_log_path = os.path.join(log_dir, "sentinel_alerts.jsonl")
-        self.audit_log_path = os.path.join(log_dir, "sentinel_security.log")
-        self.stats_file_path = os.path.join(log_dir, "sentinel_stats.json")
+        self.json_log_path = os.path.join(
+            self.log_dir, "sentinel_alerts.jsonl"
+        )
+        self.audit_log_path = os.path.join(
+            self.log_dir, "sentinel_security.log"
+        )
 
-
-        # In-memory buffer of recent alerts for fast UI updates (max 500)
-        self.recent_alerts: List[Dict[str, Any]] = []
+        self.recent_alerts = []
         self.total_inspections = 0
         self.total_allowed = 0
         self.total_blocked = 0
 
-        # Setup standard Python file logger for the audit trail
+        # Connect to Supabase using Vercel environment variables
+        self.supabase = None
+
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_KEY")
+
+        if url and key:
+            try:
+                self.supabase = create_client(url, key)
+                print("[SentinelShield] Supabase connected")
+            except Exception as e:
+                print(f"[Supabase connection error] {e}")
+
+        # Audit logger
         self.audit_logger = logging.getLogger("SentinelSecurityAudit")
         self.audit_logger.setLevel(logging.INFO)
-        # Avoid duplicate handlers if re-instantiated
+
         if not self.audit_logger.handlers:
             try:
-                file_handler = logging.FileHandler(self.audit_log_path, encoding="utf-8")
+                handler = logging.FileHandler(
+                    self.audit_log_path, encoding="utf-8"
+                )
             except OSError:
-                file_handler = logging.StreamHandler()
+                handler = logging.StreamHandler()
 
-            formatter = logging.Formatter(
-                "[%(asctime)s] [%(levelname)s] [SentinelShield] %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S"
-            )
-            file_handler.setFormatter(formatter)
-            self.audit_logger.addHandler(file_handler)
+            handler.setFormatter(logging.Formatter(
+                "[%(asctime)s] [%(levelname)s] [SentinelShield] %(message)s"
+            ))
+            self.audit_logger.addHandler(handler)
 
-        # Load existing alerts into memory if file exists
-        self._load_existing_alerts()
+    def _save_event(self, event):
+        """Save an inspection event to Supabase."""
+        if not self.supabase:
+            return False
 
-    def _load_existing_alerts(self):
-        if os.path.exists(self.json_log_path):
-            try:
-                with open(self.json_log_path, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line:
-                            try:
-                                alert = json.loads(line)
-                                self.recent_alerts.append(alert)
-                                self.total_blocked += 1
-                                self.total_inspections += 1
-                            except json.JSONDecodeError:
-                                pass
-                # Keep last 500
-                if len(self.recent_alerts) > 500:
-                    self.recent_alerts = self.recent_alerts[-500:]
-            except Exception as e:
-                print(f"[Warning] Could not load prior logs: {e}")
+        try:
+            self.supabase.table(
+                "waf_inspection_events"
+            ).insert(event).execute()
+            return True
+        except Exception as e:
+            print(f"[Supabase save error] {e}")
+            return False
 
     def log_clean_request(self, ip: str, method: str, path: str):
-        """Records a benign allowed request."""
+        """Records an allowed request."""
+
         self.total_inspections += 1
         self.total_allowed += 1
 
+        self._save_event({
+            "allowed": True,
+            "category": "Allowed",
+            "client_ip": ip,
+            "method": method,
+            "path": path,
+            "action": "ALLOW"
+        })
+
     def log_security_alert(self, alert: SecurityAlert):
-        """Persists a detected threat / blocked request in both JSONL and formatted text."""
+        """Records a blocked security request."""
+
         alert_dict = alert.to_dict()
+
         self.total_inspections += 1
         self.total_blocked += 1
 
-        # 1. Update in-memory buffer
         self.recent_alerts.append(alert_dict)
-        if len(self.recent_alerts) > 500:
-            self.recent_alerts.pop(0)
+        self.recent_alerts = self.recent_alerts[-500:]
 
-        # 2. Append to JSONL file
+        event = {
+            "allowed": False,
+            "category": alert_dict.get("category"),
+            "client_ip": alert_dict.get("client_ip"),
+            "method": alert_dict.get("method"),
+            "path": alert_dict.get("path"),
+            "severity": alert_dict.get("severity"),
+            "action": alert_dict.get("action"),
+            "rule_id": alert_dict.get("rule_id"),
+            "rule_name": alert_dict.get("rule_name"),
+            "target_component": alert_dict.get("target_component"),
+            "trigger_value": str(
+                alert_dict.get("trigger_value", "")
+            )[:120]
+        }
+
+        self._save_event(event)
+
         try:
             with open(self.json_log_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(alert_dict) + "\n")
-        except Exception as e:
-            print(f"[Logger Error] Failed writing to JSON log: {e}")
+        except OSError:
+            pass
 
-        # 3. Write structured audit line
-        # Format: [TIMESTAMP] [SEVERITY] IP - ACTION - CATEGORY - RULE_ID - PATH - PAYLOAD
-        sanitized_payload = alert.trigger_value.replace("\n", "\\n").replace("\r", "\\r")[:120]
-        audit_msg = (
-            f"ACTION={alert.action} | SEVERITY={alert.severity} | CLIENT_IP={alert.client_ip} | "
-            f"METHOD={alert.method} | PATH={alert.path} | RULE={alert.rule_id} ({alert.rule_name}) | "
-            f"CATEGORY='{alert.category}' | TARGET={alert.target_component} | PAYLOAD='{sanitized_payload}'"
+        self.audit_logger.warning(
+            f"BLOCKED | IP={event['client_ip']} | "
+            f"PATH={event['path']} | CATEGORY={event['category']}"
         )
-        self.audit_logger.warning(audit_msg)
 
     def get_summary_statistics(self) -> Dict[str, Any]:
-        """Calculates real-time aggregation metrics for dashboards and reports."""
-        category_counts = Counter(a.get("category", "Unknown") for a in self.recent_alerts)
-        severity_counts = Counter(a.get("severity", "Unknown") for a in self.recent_alerts)
-        ip_counts = Counter(a.get("client_ip", "Unknown") for a in self.recent_alerts)
+        """Gets persistent statistics from Supabase."""
 
-        top_ips = [{"ip": ip, "count": count} for ip, count in ip_counts.most_common(5)]
-        categories = [{"category": cat, "count": count} for cat, count in category_counts.most_common()]
+        if self.supabase:
+            try:
+                table = self.supabase.table("waf_inspection_events")
 
-        block_rate = (self.total_blocked / self.total_inspections * 100) if self.total_inspections > 0 else 0.0
+                total = table.select(
+                    "id", count="exact"
+                ).execute().count or 0
 
+                allowed = table.select(
+                    "id", count="exact"
+                ).eq("allowed", True).execute().count or 0
+
+                blocked = table.select(
+                    "id", count="exact"
+                ).eq("allowed", False).execute().count or 0
+
+                response = table.select("*").eq(
+                    "allowed", False
+                ).order(
+                    "created_at", desc=True
+                ).limit(500).execute()
+
+                alerts = response.data or []
+
+                category_counts = Counter(
+                    a.get("category") or "Unknown" for a in alerts
+                )
+                severity_counts = Counter(
+                    a.get("severity") or "Unknown" for a in alerts
+                )
+                ip_counts = Counter(
+                    a.get("client_ip") or "Unknown" for a in alerts
+                )
+
+                return {
+                    "total_inspections": total,
+                    "total_allowed": allowed,
+                    "total_blocked": blocked,
+                    "block_rate_percentage": round(
+                        blocked / total * 100, 2
+                    ) if total else 0.0,
+                    "category_distribution": dict(category_counts),
+                    "severity_distribution": dict(severity_counts),
+                    "categories_breakdown": [
+                        {"category": k, "count": v}
+                        for k, v in category_counts.most_common()
+                    ],
+                    "top_flagged_ips": [
+                        {"ip": k, "count": v}
+                        for k, v in ip_counts.most_common(5)
+                    ],
+                    "recent_alert_count": len(alerts)
+                }
+
+            except Exception as e:
+                print(f"[Supabase statistics error] {e}")
+
+        # Local fallback
         return {
             "total_inspections": self.total_inspections,
             "total_allowed": self.total_allowed,
             "total_blocked": self.total_blocked,
-            "block_rate_percentage": round(block_rate, 2),
-            "category_distribution": dict(category_counts),
-            "severity_distribution": dict(severity_counts),
-            "categories_breakdown": categories,
-            "top_flagged_ips": top_ips,
+            "block_rate_percentage": round(
+                self.total_blocked / self.total_inspections * 100, 2
+            ) if self.total_inspections else 0.0,
+            "category_distribution": {},
+            "severity_distribution": {},
+            "categories_breakdown": [],
+            "top_flagged_ips": [],
             "recent_alert_count": len(self.recent_alerts)
         }
 
-    def get_recent_alerts(self, limit: int = 50, category: Optional[str] = None, ip: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Returns filtered list of recent alerts, newest first."""
+    def get_recent_alerts(
+        self,
+        limit: int = 50,
+        category: Optional[str] = None,
+        ip: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+
+        if self.supabase:
+            try:
+                query = self.supabase.table(
+                    "waf_inspection_events"
+                ).select("*").eq(
+                    "allowed", False
+                ).order(
+                    "created_at", desc=True
+                ).limit(limit)
+
+                if category:
+                    query = query.eq("category", category)
+
+                if ip:
+                    query = query.eq("client_ip", ip)
+
+                return query.execute().data or []
+
+            except Exception as e:
+                print(f"[Supabase alerts error] {e}")
+
         results = list(reversed(self.recent_alerts))
+
         if category:
-            results = [a for a in results if a.get("category") == category]
+            results = [
+                a for a in results
+                if a.get("category") == category
+            ]
+
         if ip:
-            results = [a for a in results if a.get("client_ip") == ip]
+            results = [
+                a for a in results
+                if a.get("client_ip") == ip
+            ]
+
         return results[:limit]
 
     def clear_logs(self):
-        """Resets all log data and counters."""
+        """Clears local counters and recent alerts."""
+
         self.recent_alerts.clear()
         self.total_inspections = 0
         self.total_allowed = 0
         self.total_blocked = 0
-        if os.path.exists(self.json_log_path):
-            open(self.json_log_path, "w", encoding="utf-8").close()
-        if os.path.exists(self.audit_log_path):
-            open(self.audit_log_path, "w", encoding="utf-8").close()
-
