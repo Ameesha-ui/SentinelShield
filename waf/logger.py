@@ -16,20 +16,20 @@ from .models import SecurityAlert
 
 class SecurityLogger:
     def __init__(self, log_dir: str):
-    try:
-        os.makedirs(log_dir, exist_ok=True)
-        test_file = os.path.join(log_dir, ".write_test")
-        with open(test_file, "w", encoding="utf-8"):
-            pass
-        os.remove(test_file)
-    except OSError:
-        log_dir = os.path.join("/tmp", "sentinelshield_logs")
-        os.makedirs(log_dir, exist_ok=True)
+        try:
+            os.makedirs(log_dir, exist_ok=True)
+            test_file = os.path.join(log_dir, ".write_test")
+            with open(test_file, "w", encoding="utf-8"):
+                pass
+            os.remove(test_file)
+        except OSError:
+            log_dir = os.path.join("/tmp", "sentinelshield_logs")
+            os.makedirs(log_dir, exist_ok=True)
 
-    self.log_dir = log_dir
-    self.json_log_path = os.path.join(log_dir, "sentinel_alerts.jsonl")
-    self.audit_log_path = os.path.join(log_dir, "sentinel_security.log")
-    self.stats_file_path = os.path.join(log_dir, "sentinel_stats.json")
+        self.log_dir = log_dir
+        self.json_log_path = os.path.join(log_dir, "sentinel_alerts.jsonl")
+        self.audit_log_path = os.path.join(log_dir, "sentinel_security.log")
+        self.stats_file_path = os.path.join(log_dir, "sentinel_stats.json")
 
 
         # In-memory buffer of recent alerts for fast UI updates (max 500)
